@@ -2,58 +2,91 @@ package com.tulio.authservice.controller;
 
 import com.tulio.authservice.dto.AuthRequest;
 import com.tulio.authservice.dto.AuthResponse;
-import com.tulio.authservice.exception.InvalidCredentialsException;
 import com.tulio.authservice.model.User;
 import com.tulio.authservice.security.JwtUtil;
 import com.tulio.authservice.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
+@Slf4j
 public class AuthController {
-
     private final AuthenticationManager authenticationManager;
-    private final UserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
-
     private final UserService userService;
 
-    public AuthController(
-            AuthenticationManager authenticationManager,
-            UserDetailsService userDetailsService,
-            JwtUtil jwtUtil, UserService userService) {
+    public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil, UserService userService) {
         this.authenticationManager = authenticationManager;
-        this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
         this.userService = userService;
     }
 
-    @CrossOrigin(origins = "http://localhost:4200")
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> authenticate(@RequestBody AuthRequest authRequest) {
+    public ResponseEntity<?> login(@RequestBody AuthRequest loginRequest) {
+        log.info("Intento de login para usuario: {}", loginRequest.getEmail());
         try {
-            authenticationManager.authenticate(
+            Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            authRequest.getEmail(),
-                            authRequest.getPassword()
+                            loginRequest.getEmail(),
+                            loginRequest.getPassword()
                     )
             );
-        } catch (BadCredentialsException e) {
-            throw new InvalidCredentialsException("Credenciales inválidas");
+            log.info("Usuario autenticado exitosamente");
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+
+            String jwt = jwtUtil.generateToken(userDetails);
+            log.info("Token JWT generado: {}", jwt);
+
+            User user = userService.findByEmail(loginRequest.getEmail());
+
+            return ResponseEntity.ok(new AuthResponse(jwt, user.getId(), user.getName(), user.getEmail()));
+        } catch (AuthenticationException e) {
+            log.error("Error en la autenticación", e);
+            return ResponseEntity.badRequest().body("Error en la autenticación");
         }
+    }
 
-        final UserDetails userDetails = userDetailsService.loadUserByUsername(authRequest.getEmail());
-        final String jwt = jwtUtil.generateToken(userDetails);
+    @GetMapping("/validate")
+    public ResponseEntity<?> validateToken(@RequestHeader("Authorization") String authHeader) {
+        log.info("Recibida solicitud de validación de token");
+        log.info("Authorization header: {}", authHeader);
 
-        // Obtener el usuario completo para enviar el nombre
-        User user = userService.findByEmail(authRequest.getEmail());
+        try {
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                log.error("Header de autorización inválido o ausente");
+                return ResponseEntity.badRequest().body("Token inválido");
+            }
 
-        return ResponseEntity.ok(new AuthResponse(jwt, user.getName(), user.getEmail(), user.getId()));
+            String token = authHeader.substring(7);
+            log.info("Token extraído del header: {}", token);
+
+            String username = jwtUtil.extractUsername(token);
+            log.info("Username extraído del token: {}", username);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("valid", true);
+            response.put("username", username);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error al validar el token", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("valid", false);
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.ok(errorResponse);
+        }
     }
 }
