@@ -15,21 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Component;
-
-import java.security.Key;
-import java.util.Base64;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
 
 @Component
 @Slf4j
@@ -47,9 +33,16 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateToken(UserDetails userDetails) {
+    public String generateToken(UserDetails userDetails, String userId, String name) {
         log.info("Iniciando generación de token para usuario: {}", userDetails.getUsername());
         Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("name", name);
+        claims.put("email", userDetails.getUsername());
+        
+        log.info("Agregando claims al token - userId: {}, name: {}, email: {}", 
+            userId, name, userDetails.getUsername());
+        
         String token = Jwts.builder()
                 .setClaims(claims)
                 .setSubject(userDetails.getUsername())

@@ -47,12 +47,12 @@ public class AuthController {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
-            String jwt = jwtUtil.generateToken(userDetails);
-            log.info("Token JWT generado: {}", jwt);
-
             User user = userService.findByEmail(loginRequest.getEmail());
 
-            return ResponseEntity.ok(new AuthResponse(jwt, user.getId(), user.getName(), user.getEmail()));
+            String jwt = jwtUtil.generateToken(userDetails, user.getId(), user.getName());
+            log.info("Token JWT generado: {}", jwt);
+
+            return ResponseEntity.ok(new AuthResponse(jwt, user.getName(), user.getEmail(), user.getId()));
         } catch (AuthenticationException e) {
             log.error("Error en la autenticación", e);
             return ResponseEntity.badRequest().body("Error en la autenticación");
