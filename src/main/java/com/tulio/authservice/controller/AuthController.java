@@ -4,6 +4,7 @@ import com.tulio.authservice.dto.AuthRequest;
 import com.tulio.authservice.dto.AuthResponse;
 import com.tulio.authservice.model.User;
 import com.tulio.authservice.security.JwtUtil;
+import com.tulio.authservice.service.MessageProducerService;
 import com.tulio.authservice.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -25,11 +26,13 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final UserService userService;
+    private final MessageProducerService messageProducerService;
 
-    public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil, UserService userService) {
+    public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil, UserService userService, MessageProducerService messageProducerService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.userService = userService;
+        this.messageProducerService = messageProducerService;
     }
 
     @PostMapping("/login")
@@ -51,10 +54,13 @@ public class AuthController {
 
             String jwt = jwtUtil.generateToken(userDetails, user.getId(), user.getName());
             log.info("Token JWT generado: {}", jwt);
+            
+            messageProducerService.sendMessage("user.login", "Usuario logueado: " + user.getEmail(), true);
 
             return ResponseEntity.ok(new AuthResponse(jwt, user.getName(), user.getEmail(), user.getId()));
         } catch (AuthenticationException e) {
             log.error("Error en la autenticación", e);
+            messageProducerService.sendMessage("user.login", "Error en Logueo de usuario: " + loginRequest.getEmail(), false);
             return ResponseEntity.badRequest().body("Error en la autenticación");
         }
     }

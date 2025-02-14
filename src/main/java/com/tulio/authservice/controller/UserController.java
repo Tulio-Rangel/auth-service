@@ -1,6 +1,7 @@
 package com.tulio.authservice.controller;
 
 import com.tulio.authservice.model.User;
+import com.tulio.authservice.service.MessageProducerService;
 import com.tulio.authservice.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,15 +11,26 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final MessageProducerService messageProducerService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, MessageProducerService messageProducerService) {
         this.userService = userService;
+        this.messageProducerService = messageProducerService;
     }
 
     @CrossOrigin(origins = "http://localhost:4200")
     @PostMapping("/users")
-    public ResponseEntity<User> createUser(@RequestBody User user) {
-        return ResponseEntity.ok(userService.createUser(user));
+    public ResponseEntity<?> createUser(@RequestBody User user) {
+    	try {
+	    	User createdUser = userService.createUser(user);
+	    	
+	        messageProducerService.sendMessage("user.registration", "Nuevo usuario registrado: " + user.getEmail(), true);
+	
+	        return ResponseEntity.ok(createdUser);
+    	} catch (Exception e){
+    		messageProducerService.sendMessage("user.registration", "Error en registro de usuario: " + user.getEmail(), false);
+    		return ResponseEntity.badRequest().body("Error creating user: " + e.getMessage());
+    	}
     }
 
     @PutMapping("/users/{userId}")
