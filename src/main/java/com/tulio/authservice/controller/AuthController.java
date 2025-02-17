@@ -55,12 +55,12 @@ public class AuthController {
             String jwt = jwtUtil.generateToken(userDetails, user.getId(), user.getName());
             log.info("Token JWT generado: {}", jwt);
             
-            messageProducerService.sendMessage("user.login", "Usuario logueado: " + user.getEmail(), true);
+            messageProducerService.sendMessage("user.login", "Usuario logueado", user.getEmail(), true);
 
             return ResponseEntity.ok(new AuthResponse(jwt, user.getName(), user.getEmail(), user.getId()));
         } catch (AuthenticationException e) {
             log.error("Error en la autenticación", e);
-            messageProducerService.sendMessage("user.login", "Error en Logueo de usuario: " + loginRequest.getEmail(), false);
+            messageProducerService.sendMessage("user.login", "Error en Logueo de usuario", loginRequest.getEmail(), false);
             return ResponseEntity.badRequest().body("Error en la autenticación");
         }
     }

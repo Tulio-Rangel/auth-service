@@ -15,10 +15,11 @@ public class MessageProducerService {
         this.jmsTemplate = jmsTemplate;
     }
 
-    public void sendMessage(String operation, String message, boolean isSuccess) {
+    public void sendMessage(String operation, String message, String email, boolean isSuccess) {
     	Map<String, Object> messagePayload = new HashMap<>();
     	messagePayload.put("message", message);
         messagePayload.put("timestamp", LocalDateTime.now().toString());
+        messagePayload.put("email", email);
         messagePayload.put("status", isSuccess ? "success" : "failed"); 
         jmsTemplate.convertAndSend(operation, messagePayload);
     }

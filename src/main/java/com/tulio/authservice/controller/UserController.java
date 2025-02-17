@@ -24,11 +24,11 @@ public class UserController {
     	try {
 	    	User createdUser = userService.createUser(user);
 	    	
-	        messageProducerService.sendMessage("user.registration", "Nuevo usuario registrado: " + user.getEmail(), true);
+	        messageProducerService.sendMessage("user.registration", "Nuevo usuario registrado", user.getEmail(), true);
 	
 	        return ResponseEntity.ok(createdUser);
     	} catch (Exception e){
-    		messageProducerService.sendMessage("user.registration", "Error en registro de usuario: " + user.getEmail(), false);
+    		messageProducerService.sendMessage("user.registration", "Error en registro de usuario", user.getEmail(), false);
     		return ResponseEntity.badRequest().body("Error creating user: " + e.getMessage());
     	}
     }
